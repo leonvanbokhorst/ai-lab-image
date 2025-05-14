@@ -16,15 +16,15 @@ RUN apt-get update && apt-get install -y \
     bash \
     locales \
     libpam-modules \
+    libssl-dev \
+    pkg-config \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate locale
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 
-# Install uv
-RUN curl -sSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:${PATH}"
+# uv will be installed via start.sh
 
 # Install Jupyter and Python packages
 RUN pip install --no-cache-dir \
