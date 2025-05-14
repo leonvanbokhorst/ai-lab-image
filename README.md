@@ -8,14 +8,14 @@ A custom Docker environment designed for AI/Deep Learning development, featuring
 - **Python Environment**: Managed by the Conda environment within the base image.
 - **Package Management**:
   - `pip` (via `python3 -m pip`) for primary package installation.
-  - `uv`: A fast Python package installer, available for use within the container.
+  - `uv`: A fast Python package installer. It is installed by the `start.sh` script at container startup, making it available for use within the container.
 - **JupyterLab Server**:
   - Provides a web-based interactive development environment.
   - Includes a fully functional terminal.
   - Configured for access when running behind a reverse proxy (e.g., on RunPod).
 - **Volume Mounting**: The `docker-compose.yml` mounts the local current directory (`.`) to `/workspace` inside the container, allowing for persistent storage and easy file access.
 - **GPU Acceleration**: `docker-compose.yml` is configured to request GPU resources for the container.
-- **Custom Startup**: Uses a `start.sh` script to launch JupyterLab with specific flags crucial for stability and functionality, especially in proxied environments.
+- **Custom Startup**: Uses a `start.sh` script to install `uv` and then launch JupyterLab with specific flags crucial for stability and functionality, especially in proxied environments.
 
 ## Setup and Configuration Details
 
@@ -25,21 +25,46 @@ The `Dockerfile` orchestrates the image build:
 
 1.  Starts from the official PyTorch image.
 2.  Sets `/bin/bash` as the default shell and configures environment variables for non-interactive package installations (`DEBIAN_FRONTEND=noninteractive`, `ENV SHELL=/bin/bash`).
-3.  Installs essential system dependencies (`git`, `curl`, `wget`, `bash`, `locales`, `libpam-modules`) and generates the `en_US.UTF-8` locale.
-4.  Installs `uv` using its official installation script.
-5.  Installs Python packages: `jupyter`, `jupyterlab`, `ipywidgets`, `ipykernel`.
-6.  Registers the default Python kernel for Jupyter.
-7.  Enables the `jupyter_server_terminals` extension.
-8.  Ensures the `/root` directory exists with appropriate permissions.
-9.  Copies and makes executable the `start.sh` script, which is set as the `CMD`.
+3.  Installs essential system dependencies (`git`, `curl`, `wget`, `bash`, `locales`, `libpam-modules`, `libssl-dev`, `pkg-config`) and generates the `en_US.UTF-8` locale.
+4.  Installs Python packages: `jupyter`, `jupyterlab`, `ipywidgets`, `ipykernel`.
+5.  Registers the default Python kernel for Jupyter.
+6.  Enables the `jupyter_server_terminals` extension.
+7.  Ensures the `/root` directory exists with appropriate permissions.
+8.  Copies and makes executable the `start.sh` script, which is set as the `CMD`. (Note: `uv` installation is handled by `start.sh` at runtime).
 
 ### `start.sh`
 
-This script is responsible for launching JupyterLab with specific configurations:
+This script is responsible for preparing the environment and launching JupyterLab:
+
+1.  **Installs `uv`**: It checks if `uv` is present; if not, it downloads and installs `uv` to `/root/.local/bin` and adds this location to the `PATH`. This ensures `uv` is available even if there are filesystem quirks on some deployment platforms.
+2.  **Launches JupyterLab**: Starts JupyterLab with specific configurations:
 
 ```bash
 #!/bin/bash
 set -e
+
+# Function to install uv if not already available or not the desired version
+install_uv() {
+    echo "Checking for uv..."
+    if command -v uv &> /dev/null; then
+        echo "uv is already installed and in PATH."
+        uv --version
+    else
+        echo "uv not found in PATH or not installed. Attempting installation..."
+        curl -LsSf https://astral.sh/uv/install.sh | UV_NO_MODIFY_PATH=1 sh
+        export PATH="/root/.local/bin:${PATH}"
+        echo "uv installation attempted to /root/.local/bin."
+        echo "Updated PATH: ${PATH}"
+        if command -v uv &> /dev/null; then
+            echo "uv successfully installed and added to PATH:"
+            uv --version
+        else
+            echo "ERROR: uv installation failed or uv is still not in PATH after attempting install."
+        fi
+    fi
+}
+
+install_uv
 
 echo "Starting Jupyter Lab..."
 mkdir -p /workspace # Ensure workspace exists
@@ -145,7 +170,7 @@ Once the container is running, open your web browser and navigate to:
 
 ### Using `uv` Package Manager
 
-`uv` is pre-installed. To use it inside the container's shell:
+`uv` is installed at container startup by the `start.sh` script and made available on the `PATH`. To use it inside the container's shell:
 
 ```bash
 # Install a package
