@@ -19,10 +19,11 @@ python3 -m jupyter lab \
     --no-browser \
     --port=8888 \
     --ip=0.0.0.0 \
-    --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' \
     --ServerApp.token='' \
     --ServerApp.password='' \
     --ServerApp.preferred_dir=/workspace \
+    --ServerApp.allow_origin='*' \
+    --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' \
     --debug
 
 echo "Jupyter Lab startup attempted. If it exited, check logs above."
