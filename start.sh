@@ -48,15 +48,9 @@ python3 -m jupyter lab \
     --no-browser \
     --port=8888 \
     --ip=0.0.0.0 \
-    --ServerApp.token='' \
-    --ServerApp.password='' \
+    --ServerApp.token=${JUPYTER_TOKEN} \
     --ServerApp.preferred_dir=/workspace \
     --ServerApp.allow_origin='*' \
-    --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' \
-    --debug
+    --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}'
 
 echo "Jupyter Lab startup attempted. If it exited, check logs above."
-echo "If Jupyter is running, this script will now sleep indefinitely to keep the container alive."
-
-# Keep the container running
-sleep infinity

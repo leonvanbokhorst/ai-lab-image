@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   pytorch-jupyter:
     build:
@@ -9,6 +7,8 @@ services:
       - "8888:8888"
     volumes:
       - .:/workspace
+    environment:
+      - JUPYTER_TOKEN=reaadfrom.env
     deploy:
       resources:
         reservations:
