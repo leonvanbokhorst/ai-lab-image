@@ -8,6 +8,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=/bin/bash
 ENV HF_HOME=/workspace/.cache/huggingface
+ENV UV_CACHE_DIR=/workspace/.cache/uv
+ENV UV_LINK_MODE=copy
+ENV PIP_CACHE_DIR=/workspace/.cache/pip
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

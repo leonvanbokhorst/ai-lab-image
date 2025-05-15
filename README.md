@@ -25,12 +25,17 @@ The `Dockerfile` orchestrates the image build:
 
 1.  Starts from the official PyTorch image.
 2.  Sets `/bin/bash` as the default shell and configures environment variables for non-interactive package installations (`DEBIAN_FRONTEND=noninteractive`, `ENV SHELL=/bin/bash`).
-3.  Installs essential system dependencies (`git`, `curl`, `wget`, `bash`, `locales`, `libpam-modules`, `libssl-dev`, `pkg-config`) and generates the `en_US.UTF-8` locale.
-4.  Installs Python packages: `jupyter`, `jupyterlab`, `ipywidgets`, `ipykernel`.
-5.  Registers the default Python kernel for Jupyter.
-6.  Enables the `jupyter_server_terminals` extension.
-7.  Ensures the `/root` directory exists with appropriate permissions.
-8.  Copies and makes executable the `start.sh` script, which is set as the `CMD`. (Note: `uv` installation is handled by `start.sh` at runtime).
+3.  **Persistent Cache Configuration**: Sets environment variables to ensure that caches for Hugging Face, `uv`, and `pip` are stored on the mounted `/workspace` volume, making them persistent across container runs:
+    - `ENV HF_HOME=/workspace/.cache/huggingface`
+    - `ENV UV_CACHE_DIR=/workspace/.cache/uv`
+    - `ENV PIP_CACHE_DIR=/workspace/.cache/pip`
+    - `ENV UV_LINK_MODE=copy`: Configures `uv` to copy files from its cache, which is necessary when the cache directory and the target installation directory are on different filesystems (like our volume mount setup). This prevents potential hardlinking issues.
+4.  Installs essential system dependencies (`git`, `curl`, `wget`, `bash`, `locales`, `libpam-modules`, `libssl-dev`, `pkg-config`, `gcc`, `g++`) and generates the `en_US.UTF-8` locale. Note: `gcc` and `g++` are included for tools like Triton that may need to compile code on the fly.
+5.  Installs Python packages: `jupyter`, `jupyterlab`, `ipywidgets`, `ipykernel` using `pip` with `--no-cache-dir` to keep the image layers lean.
+6.  Registers the default Python kernel for Jupyter.
+7.  Enables the `jupyter_server_terminals` extension.
+8.  Ensures the `/root` directory exists with appropriate permissions.
+9.  Copies and makes executable the `start.sh` script, which is set as the `CMD`. (Note: `uv` installation is handled by `start.sh` at runtime).
 
 ### `start.sh`
 
@@ -137,23 +142,32 @@ Once the container is running, open your web browser and navigate to:
 
 ### Deploying to Docker Hub (Example with username `leonvanbokhorst`)
 
-1.  Tag the image:
+1.  Build your image if you've made changes:
     ```bash
-    docker tag ai-lab-image-pytorch-jupyter leonvanbokhorst/ai-lab-image-pytorch-jupyter:latest
+    docker-compose build
     ```
-2.  Login to Docker Hub:
+2.  Tag the image. The image built by `docker-compose` is typically named `ai-lab-image-pytorch-jupyter` (based on the project directory and service name in `docker-compose.yml`). You'll want to tag this with your Docker Hub repository name and a version.
+    ```bash
+    # First, find the IMAGE ID of your recently built image (e.g., via 'docker images ai-lab-image-pytorch-jupyter')
+    # Let's say the ID is 'abcdef123456'
+    docker tag abcdef123456 leonvanbokhorst/ai-lab-image:1.3.0
+    docker tag abcdef123456 leonvanbokhorst/ai-lab-image:latest
+    ```
+    (Replace `1.3.0` with your desired version tag and `abcdef123456` with the actual image ID).
+3.  Login to Docker Hub:
     ```bash
     docker login
     ```
-3.  Push the image:
+4.  Push the tags:
     ```bash
-    docker push leonvanbokhorst/ai-lab-image-pytorch-jupyter:latest
+    docker push leonvanbokhorst/ai-lab-image:1.3.0
+    docker push leonvanbokhorst/ai-lab-image:latest
     ```
 
 ### Using on RunPod
 
-1.  Push the image to Docker Hub as described above.
-2.  When creating a pod on RunPod, use your tagged image (e.g., `leonvanbokhorst/ai-lab-image-pytorch-jupyter:latest`).
+1.  Push the image to Docker Hub as described above (e.g., `leonvanbokhorst/ai-lab-image:latest` or a specific version).
+2.  When creating a pod on RunPod, use your tagged image (e.g., `leonvanbokhorst/ai-lab-image:latest`).
 3.  RunPod should automatically map the necessary ports. The JupyterLab instance will be accessible via the "Connect to HTTP Service" button on your RunPod pod interface.
 4.  The configurations in `start.sh` (especially `--ServerApp.allow_origin='*'` and `--ServerApp.terminado_settings`) are essential for full functionality on RunPod.
 
@@ -170,7 +184,7 @@ Once the container is running, open your web browser and navigate to:
 
 ### Using `uv` Package Manager
 
-`uv` is installed at container startup by the `start.sh` script and made available on the `PATH`. To use it inside the container's shell:
+`uv` is installed at container startup by the `start.sh` script and made available on the `PATH`. Its cache is directed to `/workspace/.cache/uv` on the persistent volume. To use it inside the container's shell:
 
 ```bash
 # Install a package
@@ -181,6 +195,16 @@ uv venv myenv
 source myenv/bin/activate
 uv pip install -r requirements.txt
 ```
+
+### Persistent Caches
+
+To improve performance and avoid re-downloading packages and models, this environment is configured to store caches on the persistently mounted `/workspace` volume. You will find the following directories created in your project folder on your host machine (which is mounted to `/workspace`):
+
+- `.cache/huggingface`: For Hugging Face models, datasets, etc.
+- `.cache/uv`: For packages downloaded by `uv`.
+- `.cache/pip`: For packages downloaded by `pip` (if used directly in the running container).
+
+These caches will persist even if you stop and remove the Docker container, as long as your local project directory remains.
 
 ### Stopping the Container
 
@@ -193,4 +217,5 @@ docker-compose down
 ```
 
 This updated README should provide a much clearer picture of your powerful AI Lab environment!
- 
+
+This setup aims to provide a robust, reproducible, and efficient environment for your deep learning endeavors. May the Force be with your code!
