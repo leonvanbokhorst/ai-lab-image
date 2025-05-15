@@ -75,32 +75,29 @@ echo "Starting Jupyter Lab..."
 mkdir -p /workspace # Ensure workspace exists
 cd / # Start from a neutral directory
 
-python3 -m jupyter lab \
-    --allow-root \
-    --no-browser \
-    --port=8888 \
-    --ip=0.0.0.0 \
-    --ServerApp.token='' \
-    --ServerApp.password='' \
-    --ServerApp.preferred_dir=/workspace \
-    --ServerApp.allow_origin='*' \
-    --ServerApp.terminado_settings='{\"shell_command\":[\"/bin/bash\"]}' \
-    --debug
+python3 -m jupyter lab \\
+    --allow-root \\
+    --no-browser \\
+    --port=8888 \\
+    --ip=0.0.0.0 \\
+    --ServerApp.token=${JUPYTER_TOKEN} \\
+    --ServerApp.preferred_dir=/workspace \\
+    --ServerApp.allow_origin='*' \\
+    --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}'
 
 echo "Jupyter Lab startup attempted. If it exited, check logs above."
-sleep infinity
 ```
 
 Key flags explained:
 
 - `--allow-root`: Necessary as the container runs as root by default.
 - `--ip=0.0.0.0`: Makes JupyterLab accessible from outside the container.
-- `--ServerApp.token=''` & `--ServerApp.password=''` : Disables token/password authentication for simplicity (suitable for trusted environments or when access is controlled by other means, e.g., RunPod proxy).
+- `--ServerApp.token=${JUPYTER_TOKEN}`: Configures JupyterLab to use a token for authentication. The actual token value is passed via the `JUPYTER_TOKEN` environment variable (see "Authentication" section below). This is a security measure to protect your JupyterLab instance.
 - `--ServerApp.preferred_dir=/workspace`: Sets the default directory in JupyterLab to our mounted volume.
 - `--ServerApp.allow_origin='*'`: **Crucial for RunPod/proxied environments.** Allows connections from any origin, preventing cross-origin request (CORS) issues that can break UI elements or terminal connections.
-- `--ServerApp.terminado_settings='{\"shell_command\":[\"/bin/bash\"]}'`: **Essential for terminal functionality.** Explicitly tells the Jupyter terminal backend (Terminado) to use `/bin/bash` as the shell. This resolves the "Launcher Error - Not Found" for the terminal.
-- `--debug`: Provides verbose logging from JupyterLab, helpful for troubleshooting.
-- `sleep infinity`: Keeps the container running after JupyterLab starts.
+- `--ServerApp.terminado_settings='{\\"shell_command\\":[\\"/bin/bash\\"]}'`: **Essential for terminal functionality.** Explicitly tells the Jupyter terminal backend (Terminado) to use `/bin/bash` as the shell. This resolves the "Launcher Error - Not Found" for the terminal.
+
+The script no longer uses `--debug` for quieter default operation, nor `sleep infinity` as JupyterLab itself keeps the container running.
 
 ### `docker-compose.yml`
 
@@ -139,6 +136,37 @@ docker-compose up -d
 
 Once the container is running, open your web browser and navigate to:
 `http://localhost:8888`
+
+Upon first access, JupyterLab will prompt you for a token. See the "Authentication" section below for how to set this up.
+
+### Authentication
+
+This JupyterLab setup uses token-based authentication for security. The token is passed to JupyterLab via the `JUPYTER_TOKEN` environment variable.
+
+**Recommended Method: `.env` file**
+
+1.  Create a file named `.env` in the root of your project directory (the same directory as `docker-compose.yml`).
+2.  Add your desired token to this file:
+    ```
+    JUPYTER_TOKEN=your_super_secret_and_unique_token_here
+    ```
+    Replace `your_super_secret_and_unique_token_here` with a strong, private token.
+3.  The project includes a `.gitignore` file that is already configured to ignore the `.env` file, so your token will not be accidentally committed to version control.
+
+When you run `docker-compose up`, Docker Compose will automatically load the `JUPYTER_TOKEN` from the `.env` file and make it available to the container.
+
+**Alternative: Exporting as a Shell Environment Variable**
+
+You can also set the token by exporting it as an environment variable in your shell before running Docker Compose:
+
+```bash
+export JUPYTER_TOKEN="your_super_secret_and_unique_token_here"
+docker-compose up
+```
+
+This method requires you to set the variable in each new terminal session or add it to your shell's startup configuration file (e.g., `.bashrc`, `.zshrc`).
+
+When you access JupyterLab in your browser, you will be prompted to enter this token.
 
 ### Deploying to Docker Hub (Example with username `leonvanbokhorst`)
 
