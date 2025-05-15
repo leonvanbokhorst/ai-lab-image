@@ -7,6 +7,7 @@ WORKDIR /workspace
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=/bin/bash
+ENV HF_HOME=/workspace/.cache/huggingface
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

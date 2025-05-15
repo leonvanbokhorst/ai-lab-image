@@ -193,3 +193,4 @@ docker-compose down
 ```
 
 This updated README should provide a much clearer picture of your powerful AI Lab environment!
+ 
